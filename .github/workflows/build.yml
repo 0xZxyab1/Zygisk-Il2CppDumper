@@ -1,4 +1,5 @@
 name: Build
+
 on:
   workflow_dispatch:
     inputs:
@@ -10,25 +11,31 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Set up Java
-      uses: actions/setup-java@v3
-      with:
-        distribution: temurin
-        java-version: 11
-        cache: gradle
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 11
+          cache: gradle
 
-    - name: Build and replace placeholders
-      run: |
-        chmod +x ./gradlew
-        sed -i 's/moduleDescription = "/moduleDescription = "(${{ github.event.inputs.package_name }}) /g' module.gradle
-        sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" module/src/main/cpp/game.h
-        ./gradlew :module:assembleRelease
+      - name: Build and replace placeholders
+        run: |
+          chmod +x ./gradlew
+          # Escape special characters in package name for sed
+          ESCAPED_PKG=$(echo "${{ github.event.inputs.package_name }}" | sed 's/[\/&]/\\&/g')
+          sed -i "s/moduleDescription = \".*\"/moduleDescription = \"($ESCAPED_PKG)\"/g" module.gradle
+          sed -i "s/com\.game\.packagename/$ESCAPED_PKG/g" module/src/main/cpp/game.h
+          ./gradlew :module:assembleRelease
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: zygisk-il2cppdumper
-        path: out/magisk_module_release/
+      - name: Verify artifacts exist
+        run: ls -la out/magisk_module_release/ || echo "Artifacts not found!"
+
+      - name: Upload build artifacts
+        if: success() && contains(fromJSON(toJSON(runner.temp)), 'out/magisk_module_release/')
+        uses: actions/upload-artifact@v3
+        with:
+          name: zygisk-il2cppdumper
+          path: out/magisk_module_release/
