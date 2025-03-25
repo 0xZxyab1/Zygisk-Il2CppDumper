@@ -33,3 +33,6 @@ ext {
 task clean(type: Delete) {
     delete rootProject.buildDir, outDir
 }
+android {
+       namespace 'zygisk.11ZGppDumper'
+}
